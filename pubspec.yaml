@@ -1,0 +1,31 @@
+name: app_design
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  image_picker: ^1.1.2
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
+  flutter_link_previewer: ^3.2.1
+  file_picker: ^6.1.0-beta.2
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.1
+  flutter_linkify: ^6.0.0
+  url_launcher: ^6.2.5
+  universal_platform: ^1.0.0+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
