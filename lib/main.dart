@@ -1,26 +1,19 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(MyApp());
-}
+import 'src/app.dart';
+import 'src/core/di/scope.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'AppDesign',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.black,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
-          elevation: 0,
-        ),
-      ),
-      home: HomePage(),
-    );
-  }
+  final scope = Scope();
+  await scope.bootstrap();
+
+  runApp(
+    Provider<Scope>.value(
+      value: scope,
+      child: const MessengerApp(),
+    ),
+  );
 }
