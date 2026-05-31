@@ -6,7 +6,6 @@
 build/
 
 # Generated files
-pubspec.lock
 **/GeneratedPluginRegistrant.*
 flutter_export_environment.sh
 
