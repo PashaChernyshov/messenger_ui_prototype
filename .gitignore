@@ -1,0 +1,57 @@
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins-dependencies
+build/
+
+# Generated files
+pubspec.lock
+**/GeneratedPluginRegistrant.*
+flutter_export_environment.sh
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# macOS / iOS
+ios/Flutter/Flutter.podspec
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/app/build/
+**/*.keystore
+**/*.jks
+
+# Windows / Linux
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+
+# Web
+web/.dart_tool/
+web/build/
+
+# Other archives
+*.zip
+*.rar
+*.7z
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Personal / secret files
+.env
+*.secret
+
+# Local runtime data
+whixp_db/
