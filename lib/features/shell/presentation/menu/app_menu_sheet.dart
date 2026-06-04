@@ -34,7 +34,7 @@ class _AppMenuSheet extends StatelessWidget {
               '\u041d\u043e\u0432\u044b\u0439 \u0447\u0430\u0442 (\u0434\u0435\u043c\u043e)',
           subtitle:
               '\u0421\u043e\u0437\u0434\u0430\u0435\u0442 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u0443\u044e \u0437\u0430\u043f\u0438\u0441\u044c \u0447\u0430\u0442\u0430',
-          tint: _ActionTint.purple,
+          tint: _ActionTint.accent,
           onTap: () {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
@@ -51,7 +51,7 @@ class _AppMenuSheet extends StatelessWidget {
               '\u041d\u043e\u0432\u0430\u044f \u0433\u0440\u0443\u043f\u043f\u0430',
           subtitle:
               '\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u0443\u044e \u0433\u0440\u0443\u043f\u043f\u0443',
-          tint: _ActionTint.blue,
+          tint: _ActionTint.accent,
           onTap: () async {
             Navigator.pop(context);
             await Navigator.push(
@@ -141,7 +141,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-enum _ActionTint { neutral, purple, blue, green, red }
+enum _ActionTint { neutral, accent, green, red }
 
 class _Action extends StatelessWidget {
   final IconData icon;
@@ -164,10 +164,9 @@ class _Action extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final Color accent = switch (tint) {
-      _ActionTint.purple => cs.primary,
-      _ActionTint.blue => Colors.lightBlueAccent.shade100,
-      _ActionTint.green => Colors.greenAccent.shade200,
-      _ActionTint.red => Colors.redAccent.shade100,
+      _ActionTint.accent => cs.primary,
+      _ActionTint.green => const Color(0xFF7E9D83),
+      _ActionTint.red => const Color(0xFFD47A7A),
       _ActionTint.neutral => cs.onSurface.withOpacity(0.75),
     };
 

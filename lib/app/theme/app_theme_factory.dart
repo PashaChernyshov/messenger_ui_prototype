@@ -4,19 +4,29 @@ class AppThemeFactory {
   const AppThemeFactory();
 
   ThemeData build(double fontSize) {
-    const accent = Color(0xFF3B82F6);
-    const bg = Color(0xFF0B1120);
-    const surface = Color(0xFF111827);
-    const surface2 = Color(0xFF172033);
-    const surface3 = Color(0xFF1A2538);
-    const outline = Color(0x001A2332);
+    const accent = Color(0xFFE6E2DA);
+    const accentMuted = Color(0xFFB8B2A8);
+    const bg = Color(0xFF050505);
+    const surface = Color(0xFF0D0D0D);
+    const surface2 = Color(0xFF151515);
+    const surface3 = Color(0xFF1F1F1F);
+    const surface4 = Color(0xFF292929);
+    const outline = Color(0xFF2B2B2B);
 
     final cs = const ColorScheme.dark().copyWith(
       primary: accent,
-      secondary: accent,
+      onPrimary: const Color(0xFF101010),
+      secondary: accentMuted,
+      onSecondary: const Color(0xFF101010),
+      tertiary: const Color(0xFF8E887E),
       background: bg,
+      onBackground: const Color(0xFFEDEBE7),
       surface: surface,
-      error: const Color(0xFFFF5C7A),
+      onSurface: const Color(0xFFEDEBE7),
+      surfaceContainerHighest: surface4,
+      outline: outline,
+      error: const Color(0xFFE06C6C),
+      onError: const Color(0xFF120707),
     );
 
     final baseTextTheme = ThemeData(
@@ -43,6 +53,8 @@ class AppThemeFactory {
       ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        backgroundColor: surface3,
+        contentTextStyle: TextStyle(color: Color(0xFFEDEBE7)),
       ),
       textTheme: _scaleTextTheme(baseTextTheme, fontSize),
       cardTheme: const CardThemeData(
@@ -64,34 +76,74 @@ class AppThemeFactory {
       ),
       listTileTheme: const ListTileThemeData(
         contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        iconColor: Colors.white70,
-        textColor: Colors.white,
+        iconColor: Color(0xFFC9C5BD),
+        textColor: Color(0xFFEDEBE7),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: surface,
         selectedItemColor: accent,
-        unselectedItemColor: Colors.white54,
+        unselectedItemColor: Color(0xFF8A8A8A),
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: accent.withOpacity(0.12),
+        elevation: 0,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? accent : const Color(0xFF8A8A8A),
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            color: selected ? accent : const Color(0xFF8A8A8A),
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+            fontSize: 12,
+          );
+        }),
       ),
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: bg,
         selectedIconTheme: IconThemeData(color: accent),
-        unselectedIconTheme: IconThemeData(color: Colors.white54),
+        unselectedIconTheme: IconThemeData(color: Color(0xFF8A8A8A)),
         selectedLabelTextStyle:
             TextStyle(color: accent, fontWeight: FontWeight.w700),
-        unselectedLabelTextStyle: TextStyle(color: Colors.white54),
+        unselectedLabelTextStyle: TextStyle(color: Color(0xFF8A8A8A)),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: accent,
-        foregroundColor: Colors.white,
+        foregroundColor: Color(0xFF101010),
         elevation: 0,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: const Color(0xFFEDEBE7),
+          backgroundColor: surface2,
+          disabledForegroundColor: const Color(0xFF666666),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: surface2,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+        textStyle: TextStyle(
+          color: Color(0xFFEDEBE7),
+          fontWeight: FontWeight.w700,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface2,
-        hintStyle: const TextStyle(color: Colors.white38),
-        labelStyle: const TextStyle(color: Colors.white70),
+        hintStyle: const TextStyle(color: Color(0xFF777777)),
+        labelStyle: const TextStyle(color: Color(0xFFC9C5BD)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
@@ -104,13 +156,13 @@ class AppThemeFactory {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: accent.withOpacity(0.38)),
+          borderSide: BorderSide(color: accent.withOpacity(0.34)),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: Colors.white,
+          foregroundColor: const Color(0xFF101010),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
@@ -118,7 +170,7 @@ class AppThemeFactory {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
+          foregroundColor: const Color(0xFFEDEBE7),
           backgroundColor: surface3,
           side: BorderSide.none,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

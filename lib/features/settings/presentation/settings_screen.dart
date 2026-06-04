@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 
 import 'package:app_design/app/state/app_state.dart';
 
@@ -15,8 +18,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final domain = TextEditingController();
   final user = TextEditingController();
   final pass = TextEditingController();
+  final micRecorder = AudioRecorder();
 
   bool badCertsDev = true;
+  List<InputDevice> micDevices = const [];
+  InputDevice? selectedMicDevice;
+  StreamSubscription<Amplitude>? micAmplitudeSub;
+  bool micTesting = false;
+  double micLevel = 0;
+  String micStatus = 'Выберите микрофон и запустите тест.';
 
   @override
   void initState() {
@@ -27,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     user.text = app.xmpp.username;
     pass.text = app.xmpp.password;
     badCertsDev = app.xmpp.allowBadCertificatesInDev;
+    _loadMicrophones();
   }
 
   @override
@@ -35,12 +46,178 @@ class _SettingsScreenState extends State<SettingsScreen> {
     domain.dispose();
     user.dispose();
     pass.dispose();
+    micAmplitudeSub?.cancel();
+    micRecorder.dispose();
     super.dispose();
   }
 
   Color _mutedAccent(ColorScheme cs) {
     // приглушаем primary (чтобы не "фиолетило" и не уходило в бирюзу)
     return Color.lerp(cs.primary, cs.onSurface, 0.45)!;
+  }
+
+  Future<void> _loadMicrophones() async {
+    try {
+      final devices = await micRecorder.listInputDevices();
+      if (!mounted) return;
+      final selectedId = context.read<AppState>().selectedMicrophoneId;
+      final selected = devices.where((device) => device.id == selectedId);
+      setState(() {
+        micDevices = devices;
+        selectedMicDevice = selected.isNotEmpty
+            ? selected.first
+            : devices.isEmpty
+                ? null
+                : devices.first;
+        micStatus = devices.isEmpty
+            ? 'Микрофоны не найдены.'
+            : 'Найдено устройств: ${devices.length}.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => micStatus = 'Не удалось получить микрофоны: $e');
+    }
+  }
+
+  Future<void> _toggleMicrophoneTest() async {
+    if (micTesting) {
+      await micAmplitudeSub?.cancel();
+      micAmplitudeSub = null;
+      await micRecorder.stop();
+      if (!mounted) return;
+      setState(() {
+        micTesting = false;
+        micLevel = 0;
+        micStatus = 'Тест остановлен.';
+      });
+      return;
+    }
+
+    try {
+      final hasPermission = await micRecorder.hasPermission();
+      if (!hasPermission) {
+        setState(() => micStatus = 'Нет доступа к микрофону.');
+        return;
+      }
+      await micRecorder.startStream(
+        RecordConfig(
+          encoder: AudioEncoder.pcm16bits,
+          sampleRate: 44100,
+          numChannels: 1,
+          device: selectedMicDevice,
+          autoGain: true,
+        ),
+      );
+      await micAmplitudeSub?.cancel();
+      micAmplitudeSub = micRecorder
+          .onAmplitudeChanged(const Duration(milliseconds: 120))
+          .listen((amplitude) {
+        if (!mounted) return;
+        final normalized = ((amplitude.current + 60) / 60).clamp(0.0, 1.0);
+        setState(() {
+          micLevel = normalized;
+          micStatus = normalized > 0.08
+              ? 'Сигнал микрофона есть.'
+              : 'Говорите в микрофон для проверки уровня.';
+        });
+      });
+      if (!mounted) return;
+      setState(() {
+        micTesting = true;
+        micStatus = 'Тест микрофона запущен.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => micStatus = 'Не удалось запустить тест: $e');
+    }
+  }
+
+  Widget _buildMicrophoneSection(Color accent) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Устройство ввода',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<InputDevice>(
+          value: selectedMicDevice,
+          isExpanded: true,
+          dropdownColor: cs.surfaceContainerHighest,
+          iconEnabledColor: cs.onSurface.withOpacity(0.70),
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.mic_rounded),
+            labelText: 'Микрофон',
+          ),
+          items: micDevices
+              .map(
+                (device) => DropdownMenuItem(
+                  value: device,
+                  child: Text(
+                    device.label.isEmpty ? device.id : device.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: micTesting
+              ? null
+              : (device) {
+                  setState(() => selectedMicDevice = device);
+                  context
+                      .read<AppState>()
+                      .updateSelectedMicrophoneId(device?.id);
+                },
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: micLevel,
+            minHeight: 8,
+            backgroundColor: cs.onSurface.withOpacity(0.10),
+            valueColor: AlwaysStoppedAnimation<Color>(accent),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          micStatus,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurface.withOpacity(0.68),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _GlassButton(
+                kind: _GlassButtonKind.outline,
+                icon: Icons.refresh_rounded,
+                label: 'Обновить',
+                onTap: micTesting ? () {} : _loadMicrophones,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GlassButton(
+                kind: _GlassButtonKind.filled,
+                icon: micTesting ? Icons.stop_rounded : Icons.graphic_eq,
+                label: micTesting ? 'Остановить' : 'Тест',
+                onTap: _toggleMicrophoneTest,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -79,11 +256,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 12 + 64, 14, 18),
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 22),
           children: [
-            const _SectionTitle('Интерфейс'),
-            const SizedBox(height: 10),
-            _GlassCard(
+            _SettingsSection(
+              icon: Icons.text_fields_rounded,
+              title: 'Интерфейс',
+              subtitle: 'Общий размер текста и плотность элементов.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -115,10 +293,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-            const _SectionTitle('Сообщения'),
-            const SizedBox(height: 10),
-            _GlassCard(
+            const SizedBox(height: 14),
+            _SettingsSection(
+              icon: Icons.forum_rounded,
+              title: 'Сообщения',
+              subtitle: 'Вид пузырей, технические подписи и читаемость чата.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -142,24 +321,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  SegmentedButton<ChatDensity>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ChatDensity.compact,
-                        label: Text('Плотно'),
+                  _SegmentedShell(
+                    accent: accent,
+                    child: SegmentedButton<ChatDensity>(
+                      segments: const [
+                        ButtonSegment(
+                          value: ChatDensity.compact,
+                          label: Text('Плотно'),
+                        ),
+                        ButtonSegment(
+                          value: ChatDensity.normal,
+                          label: Text('Обычно'),
+                        ),
+                        ButtonSegment(
+                          value: ChatDensity.comfortable,
+                          label: Text('Свободно'),
+                        ),
+                      ],
+                      selected: {app.messageDisplay.density},
+                      onSelectionChanged: (value) => app.updateMessageDisplay(
+                        app.messageDisplay.copyWith(density: value.first),
                       ),
-                      ButtonSegment(
-                        value: ChatDensity.normal,
-                        label: Text('Обычно'),
-                      ),
-                      ButtonSegment(
-                        value: ChatDensity.comfortable,
-                        label: Text('Свободно'),
-                      ),
-                    ],
-                    selected: {app.messageDisplay.density},
-                    onSelectionChanged: (value) => app.updateMessageDisplay(
-                      app.messageDisplay.copyWith(density: value.first),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -187,12 +369,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-            const _SectionTitle('XMPP'),
-            const SizedBox(height: 10),
-            _GlassCard(
+            const SizedBox(height: 14),
+            _SettingsSection(
+              icon: Icons.mic_rounded,
+              title: 'Микрофон',
+              subtitle: 'Выбор устройства и проверка входного сигнала.',
+              child: _buildMicrophoneSection(accent),
+            ),
+            const SizedBox(height: 14),
+            _SettingsSection(
+              icon: Icons.hub_rounded,
+              title: 'XMPP',
+              subtitle: 'Подключение к серверу, учетная запись и сертификаты.',
               child: Column(
                 children: [
+                  _ConnectionStatusCard(
+                    status: app.connection,
+                    hint: app.connectionHint,
+                  ),
+                  const SizedBox(height: 12),
                   _Field(
                     label: 'Хост',
                     controller: host,
@@ -221,7 +416,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _GlassSwitchTile(
                     value: badCertsDev,
                     onChanged: (v) => setState(() => badCertsDev = v),
-                    title: 'Разрешить “плохие” сертификаты (только DEV)',
+                    title: 'Разрешить плохие сертификаты',
                     subtitle: 'Включай только для локалки/самоподписанного.',
                     accent: accent,
                   ),
@@ -303,6 +498,206 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 /* ===================== UI BLOCKS (glass) ===================== */
 
+class _SettingsSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _SettingsSection({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return _GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest.withOpacity(0.56),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: cs.onSurface.withOpacity(0.07)),
+                ),
+                child: Icon(
+                  icon,
+                  color: cs.onSurface.withOpacity(0.82),
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withOpacity(0.58),
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+class _SegmentedShell extends StatelessWidget {
+  final Widget child;
+  final Color accent;
+
+  const _SegmentedShell({
+    required this.child,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        segmentedButtonTheme: SegmentedButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return accent.withOpacity(0.18);
+              }
+              return cs.surfaceContainerHighest.withOpacity(0.34);
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return cs.onSurface.withOpacity(0.95);
+              }
+              return cs.onSurface.withOpacity(0.66);
+            }),
+            side: WidgetStatePropertyAll(
+              BorderSide(color: cs.onSurface.withOpacity(0.07)),
+            ),
+            textStyle: const WidgetStatePropertyAll(
+              TextStyle(fontWeight: FontWeight.w800),
+            ),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+class _ConnectionStatusCard extends StatelessWidget {
+  final ConnectionStatus status;
+  final String hint;
+
+  const _ConnectionStatusCard({
+    required this.status,
+    required this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final color = switch (status) {
+      ConnectionStatus.connected => const Color(0xFF6F9A79),
+      ConnectionStatus.connecting => const Color(0xFFC39A54),
+      ConnectionStatus.error => const Color(0xFFC76666),
+      ConnectionStatus.disconnected => cs.onSurface.withOpacity(0.52),
+    };
+    final label = switch (status) {
+      ConnectionStatus.connected => 'Подключено',
+      ConnectionStatus.connecting => 'Подключение',
+      ConnectionStatus.error => 'Ошибка',
+      ConnectionStatus.disconnected => 'Отключено',
+    };
+    final text = hint.trim().isEmpty ? label : hint.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withOpacity(0.34),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: cs.onSurface.withOpacity(0.07)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.22),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: cs.onSurface.withOpacity(0.92),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurface.withOpacity(0.58),
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _FrostedBar extends StatelessWidget {
   final Color tint;
   final Color border;
@@ -357,7 +752,12 @@ class _AppMark extends StatelessWidget {
 
 class _GlassCard extends StatelessWidget {
   final Widget child;
-  const _GlassCard({required this.child});
+  final EdgeInsetsGeometry padding;
+
+  const _GlassCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -367,42 +767,20 @@ class _GlassCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surface,
+          color: Color.lerp(Colors.black, cs.surface, 0.68),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.transparent),
+          border: Border.all(color: cs.onSurface.withOpacity(0.06)),
           boxShadow: [
             BoxShadow(
-              blurRadius: 10,
-              spreadRadius: -10,
-              offset: const Offset(0, 8),
-              color: Colors.black.withOpacity(0.20),
+              blurRadius: 18,
+              spreadRadius: -16,
+              offset: const Offset(0, 14),
+              color: Colors.black.withOpacity(0.40),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(14),
+        padding: padding,
         child: child,
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 2, 2, 0),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontWeight: FontWeight.w900,
-          color: cs.onSurface.withOpacity(0.60),
-          letterSpacing: 0.8,
-          fontSize: 12,
-        ),
       ),
     );
   }

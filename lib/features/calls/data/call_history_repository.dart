@@ -1,4 +1,4 @@
-import 'package:app_design/features/calls/domain/call_entry.dart';
+﻿import 'package:app_design/features/calls/domain/call_entry.dart';
 
 abstract interface class CallHistoryRepository {
   List<CallEntry> loadDemoCalls();
@@ -39,3 +39,4 @@ class DemoCallHistoryRepository implements CallHistoryRepository {
     ];
   }
 }
+

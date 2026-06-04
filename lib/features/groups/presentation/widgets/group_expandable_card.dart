@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import 'package:app_design/core/ui/corporate_ui.dart';
 import 'package:app_design/features/groups/presentation/view_models/group_card_view_model.dart';
@@ -318,3 +318,4 @@ class _MessagePreviewRow extends StatelessWidget {
     );
   }
 }
+

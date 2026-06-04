@@ -1,4 +1,4 @@
-import 'package:characters/characters.dart';
+﻿import 'package:characters/characters.dart';
 
 import 'package:app_design/features/chat/domain/chat_message.dart';
 import 'package:app_design/features/groups/domain/group.dart';
@@ -116,3 +116,4 @@ class GroupMessagePreview {
     return '$hours:$minutes';
   }
 }
+

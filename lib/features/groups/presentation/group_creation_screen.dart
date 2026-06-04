@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:app_design/app/state/app_state.dart';
@@ -186,3 +186,4 @@ class _ContactPickRow extends StatelessWidget {
     );
   }
 }
+

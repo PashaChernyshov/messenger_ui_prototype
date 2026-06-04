@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -59,6 +59,9 @@ class AppState extends ChangeNotifier {
 
   double fontSize = 14;
   MessageDisplaySettings messageDisplay = MessageDisplaySettings.defaults;
+  String? selectedMicrophoneId;
+  Set<String> favoriteReactions =
+      SharedPrefsUiSettingsRepository.defaultFavoriteReactions;
   ProfileData profile = const ProfileData(
     name: 'User',
     phone: '',
@@ -83,6 +86,8 @@ class AppState extends ChangeNotifier {
   Future<void> bootstrap() async {
     fontSize = await _settingsRepository.loadFontSize();
     messageDisplay = await _settingsRepository.loadMessageDisplaySettings();
+    selectedMicrophoneId = await _settingsRepository.loadSelectedMicrophoneId();
+    favoriteReactions = await _settingsRepository.loadFavoriteReactions();
     profile = await _profileRepository.load();
     groups = await _groupRepository.load();
     calls = _callHistoryRepository.loadDemoCalls();
@@ -113,6 +118,24 @@ class AppState extends ChangeNotifier {
   Future<void> updateMessageDisplay(MessageDisplaySettings value) async {
     messageDisplay = value;
     await _settingsRepository.saveMessageDisplaySettings(value);
+    notifyListeners();
+  }
+
+  Future<void> updateSelectedMicrophoneId(String? value) async {
+    selectedMicrophoneId = value;
+    await _settingsRepository.saveSelectedMicrophoneId(value);
+    notifyListeners();
+  }
+
+  Future<void> toggleFavoriteReaction(String emoji) async {
+    final next = Set<String>.from(favoriteReactions);
+    if (next.contains(emoji)) {
+      next.remove(emoji);
+    } else {
+      next.add(emoji);
+    }
+    favoriteReactions = next;
+    await _settingsRepository.saveFavoriteReactions(next);
     notifyListeners();
   }
 
@@ -182,13 +205,15 @@ class AppState extends ChangeNotifier {
   }
 
   void markUnread(String peerKey) {
-    unreadPeers.add(peerKey);
-    notifyListeners();
+    if (unreadPeers.add(peerKey)) {
+      notifyListeners();
+    }
   }
 
   void markRead(String peerKey) {
-    unreadPeers.remove(peerKey);
-    notifyListeners();
+    if (unreadPeers.remove(peerKey)) {
+      notifyListeners();
+    }
   }
 
   void clearChat(String peerKey) {
@@ -206,8 +231,151 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setMessageTaskStatus(
+    String peerKey,
+    String messageId,
+    MessageTaskStatus? status,
+  ) {
+    _chatRepository.setTaskStatus(peerKey, messageId, status);
+    notifyListeners();
+  }
+
+  void setMessagePinned(String peerKey, String messageId, bool pinned) {
+    _chatRepository.setPinned(peerKey, messageId, pinned);
+    notifyListeners();
+  }
+
   void addLocalMessage(String peerKey, ChatMessage message) {
     _chatRepository.addMessage(peerKey, message);
+    notifyListeners();
+  }
+
+  String addPendingMediaMessage({
+    required String peerKey,
+    required ChatMediaKind kind,
+    required Duration duration,
+    String? replyToMessageId,
+    String? replyToText,
+  }) {
+    final message = _chatRepository.addPendingMedia(
+      peerKey: peerKey,
+      kind: kind,
+      duration: duration,
+      replyToMessageId: replyToMessageId,
+      replyToText: replyToText,
+    );
+    drafts.remove(peerKey);
+    unreadPeers.remove(peerKey);
+    notifyListeners();
+    return message.id;
+  }
+
+  void updateMediaProgress(
+    String peerKey,
+    String messageId, {
+    required double progress,
+    required String status,
+  }) {
+    _chatRepository.updateMediaProgress(
+      peerKey,
+      messageId,
+      progress: progress,
+      status: status,
+    );
+    notifyListeners();
+  }
+
+  void failMediaMessage(String peerKey, String messageId, String status) {
+    _chatRepository.failMediaMessage(peerKey, messageId, status);
+    notifyListeners();
+  }
+
+  Future<void> completePendingVoiceMessage({
+    required String peerKey,
+    required String messageId,
+    required String path,
+    required Duration duration,
+  }) async {
+    final current = _chatRepository.messagesOf(peerKey).firstWhere(
+          (message) => message.id == messageId,
+          orElse: () => ChatMessage(
+            id: messageId,
+            from: 'me',
+            text: '',
+            ts: DateTime.now(),
+          ),
+        );
+    _chatRepository.updateMessage(
+      peerKey,
+      messageId,
+      current.copyWith(
+        voicePath: path,
+        voiceDuration: duration,
+        mediaProgress: 0.95,
+        status: 'отправка',
+      ),
+    );
+    notifyListeners();
+
+    final seconds = duration.inSeconds.clamp(1, 599);
+    await _sendXmppNotice(peerKey, '[Голосовое сообщение] $secondsс');
+    _chatRepository.updateMessage(
+      peerKey,
+      messageId,
+      current.copyWith(
+        voicePath: path,
+        voiceDuration: duration,
+        mediaProgress: 1,
+        status: 'отправлено',
+        clearMediaProgress: true,
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<void> completePendingVideoCircleMessage({
+    required String peerKey,
+    required String messageId,
+    required String path,
+    required Duration duration,
+    required bool mirrorHorizontally,
+  }) async {
+    final current = _chatRepository.messagesOf(peerKey).firstWhere(
+          (message) => message.id == messageId,
+          orElse: () => ChatMessage(
+            id: messageId,
+            from: 'me',
+            text: '',
+            ts: DateTime.now(),
+          ),
+        );
+    _chatRepository.updateMessage(
+      peerKey,
+      messageId,
+      current.copyWith(
+        videoPath: path,
+        videoDuration: duration,
+        videoMirrorHorizontally: mirrorHorizontally,
+        mediaProgress: 0.95,
+        status: 'отправка',
+      ),
+    );
+    notifyListeners();
+
+    final seconds = duration.inSeconds.clamp(1, 599);
+    await _sendXmppNotice(peerKey, '[Видео-кружок] $secondsс');
+    _chatRepository.updateMessage(
+      peerKey,
+      messageId,
+      current.copyWith(
+        videoPath: path,
+        videoDuration: duration,
+        videoMirrorHorizontally: mirrorHorizontally,
+        mediaProgress: 1,
+        status: 'отправлено',
+        clearMediaProgress: true,
+      ),
+    );
     notifyListeners();
   }
 
@@ -327,18 +495,23 @@ class AppState extends ChangeNotifier {
     await loadXmppArchiveForGroup(roomJid);
   }
 
-  Future<void> sendText(String toJid, String text,
-      {String? replyToText}) async {
+  Future<void> sendText(
+    String toJid,
+    String text, {
+    String? replyToMessageId,
+    String? replyToText,
+  }) async {
     _chatRepository.addText(
       peerKey: toJid,
       from: 'me',
       text: text,
+      replyToMessageId: replyToMessageId,
       replyToText: replyToText,
     );
     drafts.remove(toJid);
     unreadPeers.remove(toJid);
     notifyListeners();
-    await xmpp.sendMessage(toJid, text);
+    await _sendXmppNotice(toJid, text);
   }
 
   Future<void> sendAttachment({
@@ -347,6 +520,7 @@ class AppState extends ChangeNotifier {
     required Uint8List bytes,
     required String name,
     required String mime,
+    String? replyToMessageId,
     String? replyToText,
   }) async {
     _chatRepository.addAttachment(
@@ -356,6 +530,7 @@ class AppState extends ChangeNotifier {
       bytes: bytes,
       name: name,
       mime: mime,
+      replyToMessageId: replyToMessageId,
       replyToText: replyToText,
     );
     drafts.remove(toJid);
@@ -366,7 +541,102 @@ class AppState extends ChangeNotifier {
       '[\u0412\u043b\u043e\u0436\u0435\u043d\u0438\u0435] $name (${(bytes.length / 1024).toStringAsFixed(0)} KB)',
     ].join('\n');
 
-    await xmpp.sendMessage(toJid, notifyText);
+    await _sendXmppNotice(toJid, notifyText);
+  }
+
+  Future<void> sendVoiceMessage({
+    required String toJid,
+    required String path,
+    required Duration duration,
+    String? replyToMessageId,
+    String? replyToText,
+  }) async {
+    _chatRepository.addVoice(
+      peerKey: toJid,
+      from: 'me',
+      path: path,
+      duration: duration,
+      replyToMessageId: replyToMessageId,
+      replyToText: replyToText,
+    );
+    drafts.remove(toJid);
+    notifyListeners();
+
+    final seconds = duration.inSeconds.clamp(1, 599);
+    await _sendXmppNotice(toJid, '[Голосовое сообщение] $secondsс');
+  }
+
+  Future<void> sendVideoCircle({
+    required String toJid,
+    required String path,
+    required Duration duration,
+    bool mirrorHorizontally = false,
+    String? replyToMessageId,
+    String? replyToText,
+  }) async {
+    _chatRepository.addVideoCircle(
+      peerKey: toJid,
+      from: 'me',
+      path: path,
+      duration: duration,
+      mirrorHorizontally: mirrorHorizontally,
+      replyToMessageId: replyToMessageId,
+      replyToText: replyToText,
+    );
+    drafts.remove(toJid);
+    notifyListeners();
+
+    final seconds = duration.inSeconds.clamp(1, 599);
+    await _sendXmppNotice(toJid, '[Видео-кружок] $secondsс');
+  }
+
+  Future<void> forwardMessage({
+    required String toPeerKey,
+    required ChatMessage source,
+    required String forwardedFrom,
+  }) async {
+    _chatRepository.forwardMessage(
+      peerKey: toPeerKey,
+      source: source,
+      forwardedFrom: forwardedFrom,
+    );
+    unreadPeers.remove(toPeerKey);
+    notifyListeners();
+    final notice = _forwardNoticeText(source);
+    if (toPeerKey.startsWith('group:')) {
+      final roomJid = toPeerKey.substring('group:'.length);
+      if (xmpp.connectionState.value == XmppConnectionState.connected &&
+          _looksLikeJid(roomJid)) {
+        await xmpp.sendGroupMessage(roomJid, notice);
+      }
+      return;
+    }
+    await _sendXmppNotice(toPeerKey, notice);
+  }
+
+  String _forwardNoticeText(ChatMessage source) {
+    final content = source.text.trim();
+    if (content.isNotEmpty) return content;
+    if (source.attachmentName != null) {
+      return '[Вложение] ${source.attachmentName}';
+    }
+    if (source.voicePath != null) return '[Голосовое сообщение]';
+    if (source.videoPath != null) return '[Видео-кружок]';
+    return '[Пересланное сообщение]';
+  }
+
+  Future<void> _sendXmppNotice(String toJid, String text) async {
+    if (xmpp.connectionState.value != XmppConnectionState.connected) {
+      connectionHint = 'Локально: XMPP не подключен';
+      notifyListeners();
+      return;
+    }
+    try {
+      await xmpp.sendMessage(toJid, text);
+    } catch (e) {
+      connectionHint = 'Локально: не удалось отправить в XMPP';
+      notifyListeners();
+    }
   }
 
   Future<void> sendGroupLocal(String groupId, String text) async {

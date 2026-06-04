@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import 'package:app_design/features/contacts/domain/contact.dart';
 import 'package:app_design/features/contacts/presentation/widgets/contact_tile.dart';
@@ -69,3 +69,4 @@ class ContactListScreen extends StatelessWidget {
     );
   }
 }
+

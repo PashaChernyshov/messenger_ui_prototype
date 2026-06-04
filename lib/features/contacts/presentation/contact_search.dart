@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import 'package:app_design/features/contacts/domain/contact.dart';
 import 'package:app_design/core/ui/corporate_ui.dart';
@@ -82,3 +82,4 @@ class ContactSearchDelegate extends SearchDelegate {
     );
   }
 }
+

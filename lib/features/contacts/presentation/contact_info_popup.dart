@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -151,3 +151,4 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+

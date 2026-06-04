@@ -1,4 +1,4 @@
-import 'package:shared_preferences/shared_preferences.dart';
+﻿import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app_design/features/settings/domain/message_display_settings.dart';
 
@@ -7,14 +7,22 @@ abstract interface class UiSettingsRepository {
   Future<void> saveFontSize(double value);
   Future<MessageDisplaySettings> loadMessageDisplaySettings();
   Future<void> saveMessageDisplaySettings(MessageDisplaySettings value);
+  Future<String?> loadSelectedMicrophoneId();
+  Future<void> saveSelectedMicrophoneId(String? value);
+  Future<Set<String>> loadFavoriteReactions();
+  Future<void> saveFavoriteReactions(Set<String> value);
 }
 
 class SharedPrefsUiSettingsRepository implements UiSettingsRepository {
+  static const defaultFavoriteReactions = {'👍', '❤️', '✅', '🔥', '👏'};
+
   static const _fontSizeKey = 'ui_font_size_v1';
   static const _messageFontSizeKey = 'message_font_size_v1';
   static const _chatDensityKey = 'chat_density_v1';
   static const _showMessageTimeKey = 'show_message_time_v1';
   static const _showTechnicalIdsKey = 'show_technical_ids_v1';
+  static const _selectedMicrophoneIdKey = 'selected_microphone_id_v1';
+  static const _favoriteReactionsKey = 'favorite_reactions_v1';
 
   @override
   Future<double> loadFontSize() async {
@@ -54,4 +62,35 @@ class SharedPrefsUiSettingsRepository implements UiSettingsRepository {
     await prefs.setBool(_showMessageTimeKey, value.showMessageTime);
     await prefs.setBool(_showTechnicalIdsKey, value.showTechnicalIds);
   }
+
+  @override
+  Future<String?> loadSelectedMicrophoneId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selectedMicrophoneIdKey);
+  }
+
+  @override
+  Future<void> saveSelectedMicrophoneId(String? value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value == null || value.isEmpty) {
+      await prefs.remove(_selectedMicrophoneIdKey);
+      return;
+    }
+    await prefs.setString(_selectedMicrophoneIdKey, value);
+  }
+
+  @override
+  Future<Set<String>> loadFavoriteReactions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList(_favoriteReactionsKey);
+    if (saved == null || saved.isEmpty) return defaultFavoriteReactions;
+    return saved.where((item) => item.trim().isNotEmpty).toSet();
+  }
+
+  @override
+  Future<void> saveFavoriteReactions(Set<String> value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_favoriteReactionsKey, value.toList());
+  }
 }
+

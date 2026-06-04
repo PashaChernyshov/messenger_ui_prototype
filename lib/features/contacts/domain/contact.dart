@@ -1,4 +1,4 @@
-import 'package:characters/characters.dart';
+﻿import 'package:characters/characters.dart';
 
 class Contact {
   final String jid; // КРИТИЧНО для XMPP
@@ -50,3 +50,4 @@ class Contact {
     );
   }
 }
+

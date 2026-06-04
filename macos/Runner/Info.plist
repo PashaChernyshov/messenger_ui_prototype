@@ -26,6 +26,10 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is used to record voice messages.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to record video messages.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

@@ -3,9 +3,14 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
+  camera_windows
+  ffmpeg_kit_flutter_new
   file_selector_windows
   permission_handler_windows
+  record_windows
   url_launcher_windows
+  video_player_win
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class MenuWidget extends StatelessWidget {
   final String title;
@@ -87,3 +87,4 @@ class _CloseButton extends StatelessWidget {
     );
   }
 }
+
